@@ -16,7 +16,7 @@ public interface BudgetServiceClient {
 
     // Matches @PatchMapping("/{budgetId}") in BudgetController
     @PatchMapping("/api/v1/budgets/{budgetId}")
-    ResponseEntity<String> updateBudgetSpent(
+    ResponseEntity<String> allocateFundToResearcher(
             @PathVariable("budgetId") Long budgetId,
             @RequestParam("allocatedAmount") Double allocatedAmount
     );

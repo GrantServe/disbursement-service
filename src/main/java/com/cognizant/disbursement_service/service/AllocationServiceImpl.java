@@ -59,7 +59,7 @@ public class AllocationServiceImpl implements IAllocationService {
 
         // 5. Update Budget Spent (Remote Call to Budget Service)
         // This triggers your PatchMapping in BudgetController
-        budgetClient.updateBudgetSpent(budget.budgetID(), shareAmount);
+        budgetClient.allocateFundToResearcher(budget.budgetID(), shareAmount);
 
         // 6. Save Allocation Locally (Finance Service Database)
         Allocation allocation = new Allocation();
