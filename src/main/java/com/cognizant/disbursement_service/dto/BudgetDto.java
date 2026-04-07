@@ -1,10 +1,12 @@
 package com.cognizant.disbursement_service.dto;
 
 import com.cognizant.disbursement_service.enums.BudgetStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record BudgetDto(
+
         Long budgetID,
 
         @NotNull(message = "Allocated amount is required")

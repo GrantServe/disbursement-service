@@ -8,11 +8,11 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "budget-service")
+@FeignClient(name = "BUDGET-SERVICE")
 public interface BudgetServiceClient {
     // Matches @GetMapping("/program/{programId}") in BudgetController
     @GetMapping("/api/v1/budgets/program/{programId}")
-    BudgetDto getBudgetByProgram(@PathVariable("programId") Long programId);
+    BudgetDto getBudgetByProgram(@PathVariable(value = "programId", required = true) Long programId);
 
     // Matches @PatchMapping("/{budgetId}") in BudgetController
     @PatchMapping("/api/v1/budgets/{budgetId}")

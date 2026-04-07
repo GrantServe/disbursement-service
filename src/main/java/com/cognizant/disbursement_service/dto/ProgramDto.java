@@ -26,8 +26,8 @@ public record ProgramDto(
         @NotNull(message = "Budget is required")
         Double budget,
 
-        @NotNull
-        Integer count,
+        @NotNull(message = "Total number of applications is required")
+        Integer totalApplications,
 
         @NotNull(message = "Status is required")
         ProgramStatus status

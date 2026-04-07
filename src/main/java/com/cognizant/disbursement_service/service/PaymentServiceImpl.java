@@ -1,10 +1,12 @@
 package com.cognizant.disbursement_service.service;
 
 import com.cognizant.disbursement_service.dto.PaymentDto;
+import com.cognizant.disbursement_service.dto.GrantApplicationDto;
 import com.cognizant.disbursement_service.entity.Disbursement;
 import com.cognizant.disbursement_service.entity.Payment;
 import com.cognizant.disbursement_service.enums.PaymentMethod;
 import com.cognizant.disbursement_service.exception.PaymentException;
+import com.cognizant.disbursement_service.feign.GrantServiceClient;
 import com.cognizant.disbursement_service.repository.DisbursementRepository;
 import com.cognizant.disbursement_service.repository.PaymentRepository;
 import com.cognizant.disbursement_service.util.ClassUtilSeparator;
@@ -14,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,6 +26,9 @@ public class PaymentServiceImpl implements IPaymentService {
 
     @Autowired
     private PaymentRepository paymentRepo;
+
+    @Autowired
+    private GrantServiceClient grantClient;
 
     @Autowired
     private DisbursementRepository disbursementRepo;
@@ -94,6 +100,37 @@ public class PaymentServiceImpl implements IPaymentService {
         }
         paymentRepo.deleteById(paymentID);
         log.info("Payment ID: {} successfully deleted", paymentID);
+    }
+
+    @Override
+    public List<PaymentDto> getPaymentsByResearcher(Long researcherID) {
+        log.info("Fetching payment history for Researcher ID: {}", researcherID);
+
+        // Step 1: Call Grant Service to get all applications for this researcher
+        List<GrantApplicationDto> applications = grantClient.fetchGrantApplications(researcherID);
+
+        if (applications == null || applications.isEmpty()) {
+            log.info("No applications found for Researcher ID: {}", researcherID);
+            return Collections.emptyList();
+        }
+
+        // Step 2: Extract the Application IDs from the list of DTOs
+        List<Long> appIds = applications.stream()
+                .map(GrantApplicationDto::applicationID)
+                .collect(Collectors.toList());
+
+        // Step 3: Fetch payments from the LOCAL database using these IDs
+        List<Payment> payments = paymentRepo.findByDisbursement_ApplicationIDIn(appIds);
+
+        // Step 4: Map the Entity to DTO for the response
+        return payments.stream()
+                .map(payment -> new PaymentDto(
+                        payment.getPaymentID(),
+                        payment.getMethod(),
+                        payment.getDisbursement().getAmount(),
+                        payment.getDate()
+                ))
+                .collect(Collectors.toList());
     }
 
 //    @Override

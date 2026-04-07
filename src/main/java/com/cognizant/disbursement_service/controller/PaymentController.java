@@ -49,14 +49,14 @@ public class PaymentController {
         return ResponseEntity.ok(payments);
     }
 
-//    @GetMapping("/researcher/{id}")
-//    public ResponseEntity<List<PaymentDto>> getResearcherPayments(@PathVariable Long id) {
-//        log.info("REST Request: Retrieving payment history for Researcher ID: {}", id);
-//
-//        List<PaymentDto> history = paymentService.getPaymentsByResearcher(id);
-//        log.info("REST Response: Returning {} records for Researcher ID: {}", history.size(), id);
-//        return ResponseEntity.ok(history);
-//    }
+    @GetMapping("/researcher/{id}")
+    public ResponseEntity<List<PaymentDto>> getResearcherPayments(@PathVariable Long id) {
+        log.info("REST Request: Retrieving payment history for Researcher ID: {}", id);
+
+        List<PaymentDto> history = paymentService.getPaymentsByResearcher(id);
+        log.info("REST Response: Returning {} records for Researcher ID: {}", history.size(), id);
+        return ResponseEntity.ok(history);
+    }
 
     @GetMapping("/all")
     public ResponseEntity<List<Payment>> getAll() {

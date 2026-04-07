@@ -30,6 +30,13 @@ public class AllocationServiceImpl implements IAllocationService {
     public String createAllocation(AllocationDto allocationDto) throws AllocationException {
         Long appId = allocationDto.applicationID();
 
+        if (allocationRepo.existsByApplicationID(appId)) {
+            throw new AllocationException(
+                    "Allocation already exists for Application ID: " + appId,
+                    HttpStatus.CONFLICT // 409 Conflict is the correct HTTP status here
+            );
+        }
+
         // 1. Validate Application Status (from Grant Service)
         GrantApplicationDto app = grantClient.getApplication(appId);
         if (app == null || !"APPROVED".equalsIgnoreCase(app.status())) {
@@ -44,8 +51,12 @@ public class AllocationServiceImpl implements IAllocationService {
         }
         ProgramDto program = programs.get(0);
 
-        if (program.count() <= 0) {
+        if (program.totalApplications() <= 0) {
             throw new AllocationException("No slots left in program", HttpStatus.BAD_REQUEST);
+        }
+        if (app.programID() == null) {
+            // This will stop the 404 and give you a clear error message
+            throw new AllocationException("CRITICAL: programID is NULL in the DTO. Call stopped.", HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
         // 3. Get Budget Details (from Budget Service)
@@ -55,7 +66,7 @@ public class AllocationServiceImpl implements IAllocationService {
         }
 
         // 4. Calculate Share
-        Double shareAmount = budget.allocatedAmount() / program.count();
+        Double shareAmount = budget.allocatedAmount() / program.totalApplications();
 
         // 5. Update Budget Spent (Remote Call to Budget Service)
         // This triggers your PatchMapping in BudgetController
@@ -65,6 +76,7 @@ public class AllocationServiceImpl implements IAllocationService {
         Allocation allocation = new Allocation();
         allocation.setApplicationID(appId);
         allocation.setProgramID(pId);
+        allocation.setBudgetID(budget.budgetID());
         allocation.setTotalAwardedAmount(shareAmount);
         allocation.setDisbursedAmount(0.0);
         allocation.setRemainingBalance(shareAmount);

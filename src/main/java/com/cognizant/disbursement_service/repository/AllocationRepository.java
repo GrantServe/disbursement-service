@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface AllocationRepository extends JpaRepository<Allocation, Long> {
     Optional<Allocation> findByApplicationID(Long applicationId);
+    boolean existsByApplicationID(Long applicationID);
 }

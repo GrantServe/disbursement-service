@@ -8,6 +8,7 @@ import com.cognizant.disbursement_service.entity.Disbursement;
 import com.cognizant.disbursement_service.exception.DisbursementException;
 import com.cognizant.disbursement_service.repository.AllocationRepository;
 import com.cognizant.disbursement_service.repository.DisbursementRepository;
+import com.cognizant.disbursement_service.util.ClassUtilSeparator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -67,10 +68,8 @@ public class DisbursementServiceImpl implements IDisbursementService {
         allocationRepo.save(allocation);
 
         // 5. Create and Save Disbursement Entity
-        Disbursement disbursement = new Disbursement();
-        disbursement.setApplicationID(dto.applicationID()); // Store ID as Long
-        disbursement.setAmount(dto.amount());
-        disbursement.setStatus("PAID"); // Or use dto.status() if coming from request
+        Disbursement disbursement = ClassUtilSeparator.DisbursementUtil(dto);
+        disbursement.setApplicationID(dto.applicationID()); // Store ID as Long// Or use dto.status() if coming from request
 
         Disbursement saved = disbursementRepo.save(disbursement);
 
