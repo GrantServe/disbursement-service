@@ -133,25 +133,4 @@ public class PaymentServiceImpl implements IPaymentService {
                 .collect(Collectors.toList());
     }
 
-//    @Override
-//    public List<PaymentDto> getPaymentsByResearcher(Long researcherID) {
-//        log.info("Retrieving payment history for Researcher ID: {}", researcherID);
-//
-//        List<Payment> payments = paymentRepo.findByDisbursement_Application_Researcher_ResearcherID(researcherID);
-//
-//        if (payments.isEmpty()) {
-//            log.info("Researcher ID {} has no recorded payments", researcherID);
-//        } else {
-//            log.info("Found {} payment records for Researcher ID {}", payments.size(), researcherID);
-//        }
-//
-//        return payments.stream()
-//                .map(payment -> new PaymentDto(
-//                        payment.getDisbursement().getDisbursementID(),
-//                        payment.getMethod(),
-//                        payment.getDisbursement().getAmount()
-//                ))
-//                .collect(Collectors.toList());
-//    }
-
 }

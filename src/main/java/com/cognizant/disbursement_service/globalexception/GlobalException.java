@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.cts.grantserve.security.shared.exception.BaseSecurityExceptionHandler;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -18,7 +19,7 @@ import java.util.Map;
 @RestControllerAdvice
 @ControllerAdvice
 @Slf4j
-public class GlobalException {
+public class GlobalException extends BaseSecurityExceptionHandler {
 
 
 
@@ -110,6 +111,18 @@ public class GlobalException {
         body.put("path", ex.getResourcePath());
 
         return new ResponseEntity<>(body, HttpStatus.NOT_FOUND); // Now it returns 404
+    }
+    @ExceptionHandler(feign.FeignException.class)
+    public ResponseEntity<Object> handleFeignException(feign.FeignException e) {
+        log.error("Feign Client Error: Status {}, Message {}", e.status(), e.getMessage());
+
+        HttpStatus status = HttpStatus.resolve(e.status());
+        if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
+
+        String message = (status == HttpStatus.NOT_FOUND)
+                ? "Clear Error: Invalid Request - Resource not found in dependency service."
+                : "Clear Error: Communication with the dependency service failed.";
+        return buildResponse(status, message);
     }
 
 }
