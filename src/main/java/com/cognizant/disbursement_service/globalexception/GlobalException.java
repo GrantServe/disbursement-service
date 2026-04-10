@@ -42,13 +42,13 @@ public class GlobalException extends BaseSecurityExceptionHandler {
 
 
     @ExceptionHandler(DisbursementException.class)
-    public ResponseEntity<String> disbursementExceptionHandler(DisbursementException d) {
-        return ResponseEntity.status(d.getHttpStatus()).body(d.getMessage());
+    public ResponseEntity<Object> disbursementExceptionHandler(DisbursementException d) {
+        return buildResponse(d.getHttpStatus(),d.getMessage());
     }
 
     @ExceptionHandler(PaymentException.class)
-    public ResponseEntity<String> paymentExceptionHandler(PaymentException p) {
-        return ResponseEntity.status(p.getHttpStatus()).body(p.getMessage());
+    public ResponseEntity<Object> paymentExceptionHandler(PaymentException p) {
+        return buildResponse(p.getHttpStatus(),p.getMessage());
     }
 
 
@@ -57,7 +57,7 @@ public class GlobalException extends BaseSecurityExceptionHandler {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", LocalDateTime.now());
         body.put("message", "An unexpected error occurred");
-        body.put("error", ex.getMessage()); // This helps you debug in Postman!
+        body.put("error", ex.getMessage());
 
         log.error("Unexpected Error: ", ex);
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -98,9 +98,9 @@ public class GlobalException extends BaseSecurityExceptionHandler {
     }
 
     @ExceptionHandler(AllocationException.class)
-    public ResponseEntity<String> handleAllocationException(AllocationException ex) {
+    public ResponseEntity<Object> handleAllocationException(AllocationException ex) {
         // Returns just the message as a String with the specific HTTP Status
-        return new ResponseEntity<>(ex.getMessage(), ex.getHttpStatus());
+        return buildResponse(ex.getHttpStatus(), ex.getMessage());
     }
 
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
