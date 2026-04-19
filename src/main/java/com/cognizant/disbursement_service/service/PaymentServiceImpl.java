@@ -45,7 +45,7 @@ public class PaymentServiceImpl implements IPaymentService {
                     return new PaymentException("Disbursement not found with ID: " + dto.disbursementID(), HttpStatus.NOT_FOUND);
                 });
 
-        // 2. Check if payment already exists (Strict check)
+        // 2. Check if payment already exists
         paymentRepo.findByDisbursement_DisbursementID(dto.disbursementID())
                 .ifPresent(p -> {
                     log.warn("Payment Conflict: A payment already exists for Disbursement ID {}", dto.disbursementID());
@@ -59,7 +59,6 @@ public class PaymentServiceImpl implements IPaymentService {
         // 4. Update Disbursement Status to COMPLETED
         disbursement.setStatus("COMPLETED");
         disbursementRepo.save(disbursement);
-        log.info("Disbursement status updated to COMPLETED for ID: {}", dto.disbursementID());
 
         // 5. Save the final Payment record
         Payment savedPayment = paymentRepo.save(payment);
@@ -88,18 +87,6 @@ public class PaymentServiceImpl implements IPaymentService {
     public List<Payment> getAllPayments() {
         log.info("Fetching all payment records from the database");
         return paymentRepo.findAll();
-    }
-
-    @Override
-    @Transactional
-    public void deletePayment(Long paymentID) {
-        log.info("Initiating deletion for Payment ID: {}", paymentID);
-        if (!paymentRepo.existsById(paymentID)) {
-            log.error("Delete Action Failed: Payment ID {} does not exist", paymentID);
-            throw new PaymentException("Payment ID not found", HttpStatus.NOT_FOUND);
-        }
-        paymentRepo.deleteById(paymentID);
-        log.info("Payment ID: {} successfully deleted", paymentID);
     }
 
     @Override

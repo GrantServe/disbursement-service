@@ -1,12 +1,13 @@
 package com.cognizant.disbursement_service.service;
 
+import com.cognizant.disbursement_service.dto.BudgetDto;
 import com.cognizant.disbursement_service.dto.DisbursementDto;
 import com.cognizant.disbursement_service.dto.GrantApplicationDto;
-import com.cognizant.disbursement_service.entity.Allocation;
 import com.cognizant.disbursement_service.entity.Disbursement;
+import com.cognizant.disbursement_service.enums.BudgetStatus;
 import com.cognizant.disbursement_service.exception.DisbursementException;
+import com.cognizant.disbursement_service.feign.BudgetServiceClient;
 import com.cognizant.disbursement_service.feign.GrantServiceClient;
-import com.cognizant.disbursement_service.repository.AllocationRepository;
 import com.cognizant.disbursement_service.repository.DisbursementRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.util.Optional;
 
@@ -26,44 +28,36 @@ import static org.mockito.Mockito.*;
 class DisbursementServiceImplTest {
 
     @Mock private DisbursementRepository disbursementRepo;
-    @Mock private AllocationRepository allocationRepo;
+    @Mock private BudgetServiceClient budgetClient;
     @Mock private GrantServiceClient grantClient;
 
     @InjectMocks
     private DisbursementServiceImpl disbursementService;
 
     private DisbursementDto disbursementDto;
-    private Allocation allocation;
     private GrantApplicationDto grantAppDto;
+    private BudgetDto budgetDto;
 
     @BeforeEach
     void setUp() {
-        // Updated to match your Record: applicationID, programID, amount
+        // Record: applicationID, programID, amount
         disbursementDto = new DisbursementDto(3L, 101L, 1000.0);
 
-        // Local Allocation entity setup
-        allocation = new Allocation();
-        allocation.setApplicationID(3L);
-        allocation.setProgramID(101L);
-        allocation.setTotalAwardedAmount(5000.0);
-        allocation.setDisbursedAmount(500.0);
-        allocation.setRemainingBalance(4500.0);
-        allocation.setStatus("ALLOCATED");
+        // Grant DTO: applicationID, researcherID, programID, title, status
+        grantAppDto = new GrantApplicationDto(3L, 1001L, 101L, "Research Grant", "APPROVED");
 
-        // Remote Grant Service DTO setup
-        // applicationID, researcherID, programID, title, status
-        grantAppDto = new GrantApplicationDto(3L, 1001L, 101L, "Research Project", "APPROVED");
+        // Budget DTO: budgetID, allocatedAmount, spentAmount, remainingAmount, status, programId
+        budgetDto = new BudgetDto(500L, 5000.0, 1000.0, 4000.0, BudgetStatus.ACTIVE, 101L);
     }
 
     @Test
     void testInitiateDisbursement_Success() {
         // Arrange
-        when(allocationRepo.findByApplicationID(3L)).thenReturn(Optional.of(allocation));
         when(grantClient.getApplication(3L)).thenReturn(grantAppDto);
+        when(budgetClient.getBudgetByProgram(101L)).thenReturn(budgetDto);
 
         Disbursement mockSaved = new Disbursement();
         mockSaved.setDisbursementID(1L);
-        mockSaved.setApplicationID(3L);
         when(disbursementRepo.save(any(Disbursement.class))).thenReturn(mockSaved);
 
         // Act
@@ -73,39 +67,82 @@ class DisbursementServiceImplTest {
         assertNotNull(result);
         assertEquals(1L, result.getDisbursementID());
 
-        // Logic Check: 4500 (remaining) - 1000 (requested) = 3500
-        assertEquals(3500.0, allocation.getRemainingBalance());
-        assertEquals(1500.0, allocation.getDisbursedAmount());
-
-        verify(allocationRepo, times(1)).save(allocation);
-        verify(disbursementRepo, times(1)).save(any(Disbursement.class));
+        // Verify cross-service calls
+        verify(grantClient).getApplication(3L);
+        verify(budgetClient).getBudgetByProgram(101L);
+        verify(budgetClient).allocateFundToResearcher(500L, 1000.0);
+        verify(disbursementRepo).save(any(Disbursement.class));
     }
 
     @Test
-    void testInitiateDisbursement_ExhaustsBalance() {
-        // Arrange: Set remaining balance exactly equal to disbursement amount
-        allocation.setTotalAwardedAmount(1000.0);
-        allocation.setDisbursedAmount(0.0);
-        allocation.setRemainingBalance(1000.0);
+    void testInitiateDisbursement_ApplicationNotApproved_ThrowsException() {
+        // Arrange
+        GrantApplicationDto pendingApp = new GrantApplicationDto(3L, 1001L, 101L, "Title", "PENDING");
+        when(grantClient.getApplication(3L)).thenReturn(pendingApp);
 
-        when(allocationRepo.findByApplicationID(3L)).thenReturn(Optional.of(allocation));
+        // Act & Assert
+        DisbursementException ex = assertThrows(DisbursementException.class, () ->
+                disbursementService.initiateDisbursement(disbursementDto)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("Application status must be APPROVED"));
+
+        // Ensure we stop before calling the Budget Service
+        verify(budgetClient, never()).getBudgetByProgram(anyLong());
+    }
+
+    @Test
+    void testInitiateDisbursement_InsufficientBudget_ThrowsException() {
+        // Arrange
+        BudgetDto lowBudget = new BudgetDto(500L, 5000.0, 4500.0, 500.0, BudgetStatus.ACTIVE, 101L);
+        // Request is 1000.0, but only 500.0 is left
+
         when(grantClient.getApplication(3L)).thenReturn(grantAppDto);
-        when(disbursementRepo.save(any(Disbursement.class))).thenReturn(new Disbursement());
+        when(budgetClient.getBudgetByProgram(101L)).thenReturn(lowBudget);
 
-        // Act
-        disbursementService.initiateDisbursement(disbursementDto);
-
-        // Assert
-        assertEquals(0.0, allocation.getRemainingBalance());
-        assertEquals("EXHAUSTED", allocation.getStatus());
+        // Act & Assert
+        DisbursementException ex = assertThrows(DisbursementException.class, () ->
+                disbursementService.initiateDisbursement(disbursementDto)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("Insufficient budget"));
     }
 
     @Test
-    void testTrackByApplication() {
+    void testInitiateDisbursement_BudgetUpdateFails_ThrowsException() {
+        // Arrange
+        when(grantClient.getApplication(3L)).thenReturn(grantAppDto);
+        when(budgetClient.getBudgetByProgram(101L)).thenReturn(budgetDto);
+
+        // Simulate Feign error (e.g., Timeout or Network failure)
+        when(budgetClient.allocateFundToResearcher(anyLong(), anyDouble()))
+                .thenThrow(new RuntimeException("Connection Refused"));
+
+        // Act & Assert
+        DisbursementException ex = assertThrows(DisbursementException.class, () ->
+                disbursementService.initiateDisbursement(disbursementDto)
+        );
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getHttpStatus() );
+    }
+
+    @Test
+    void testDeleteDisbursement_Success() {
+        // Arrange
+        when(disbursementRepo.existsById(1L)).thenReturn(true);
+
         // Act
-        disbursementService.trackByApplication(3L);
+        disbursementService.deleteDisbursement(1L);
 
         // Assert
-        verify(disbursementRepo, times(1)).findByApplicationID(3L);
+        verify(disbursementRepo, times(1)).deleteById(1L);
+    }
+
+    @Test
+    void testDeleteDisbursement_NotFound_ThrowsException() {
+        // Arrange
+        when(disbursementRepo.existsById(1L)).thenReturn(false);
+
+        // Act & Assert
+        assertThrows(DisbursementException.class, () -> disbursementService.deleteDisbursement(1L));
     }
 }

@@ -11,7 +11,6 @@ public interface IPaymentService {
     List<Payment> getPaymentsByMethod(PaymentMethod method);
     Payment getPaymentByDisbursement(Long disbursementID);
     List<Payment> getAllPayments();
-    void deletePayment(Long paymentID);
     List<PaymentDto> getPaymentsByResearcher(Long researcherID);
 
 }

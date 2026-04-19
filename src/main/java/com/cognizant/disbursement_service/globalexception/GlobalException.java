@@ -2,7 +2,6 @@ package com.cognizant.disbursement_service.globalexception;
 
 import com.cognizant.disbursement_service.exception.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -21,6 +20,15 @@ import java.util.Map;
 @Slf4j
 public class GlobalException extends BaseSecurityExceptionHandler {
 
+    @ExceptionHandler(DisbursementException.class)
+    public ResponseEntity<Object> disbursementExceptionHandler(DisbursementException d) {
+        return buildResponse(d.getHttpStatus(),d.getMessage());
+    }
+
+    @ExceptionHandler(PaymentException.class)
+    public ResponseEntity<Object> paymentExceptionHandler(PaymentException p) {
+        return buildResponse(p.getHttpStatus(),p.getMessage());
+    }
 
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -41,17 +49,6 @@ public class GlobalException extends BaseSecurityExceptionHandler {
 
 
 
-    @ExceptionHandler(DisbursementException.class)
-    public ResponseEntity<Object> disbursementExceptionHandler(DisbursementException d) {
-        return buildResponse(d.getHttpStatus(),d.getMessage());
-    }
-
-    @ExceptionHandler(PaymentException.class)
-    public ResponseEntity<Object> paymentExceptionHandler(PaymentException p) {
-        return buildResponse(p.getHttpStatus(),p.getMessage());
-    }
-
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGlobalException(Exception ex) {
         Map<String, Object> body = new LinkedHashMap<>();
@@ -63,25 +60,6 @@ public class GlobalException extends BaseSecurityExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<String> handleDataIntegrity(DataIntegrityViolationException ex) {
-        String errorMessage = ex.getMostSpecificCause().getMessage();
-        String userFriendlyMessage = "Database error: A unique record already exists.";
-
-        // Check for User Email Duplicate
-        if (errorMessage.contains("users") || errorMessage.contains("email")) {
-            userFriendlyMessage = "The email address is already in use. Please use a different one.";
-        }
-        // Check for Allocation Duplicate (Your new module)
-        else if (errorMessage.contains("allocation")) {
-            userFriendlyMessage = "Error: This application already has funds allocated.";
-        }
-
-        log.error("Data Integrity Violation: {}", ex.getMessage());
-
-        // Returning simple string as requested
-        return new ResponseEntity<>(userFriendlyMessage, HttpStatus.CONFLICT);
-    }
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
     public ResponseEntity<String> handlePaymentMethodEnumError(org.springframework.http.converter.HttpMessageNotReadableException ex) {
         String errorMsg = ex.getMessage();
@@ -95,12 +73,6 @@ public class GlobalException extends BaseSecurityExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body("Please check your request format.");
-    }
-
-    @ExceptionHandler(AllocationException.class)
-    public ResponseEntity<Object> handleAllocationException(AllocationException ex) {
-        // Returns just the message as a String with the specific HTTP Status
-        return buildResponse(ex.getHttpStatus(), ex.getMessage());
     }
 
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)

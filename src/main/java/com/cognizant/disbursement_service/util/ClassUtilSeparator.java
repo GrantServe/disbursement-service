@@ -14,8 +14,9 @@ public class ClassUtilSeparator {
     public static Disbursement DisbursementUtil(DisbursementDto disbursementDto){
         Disbursement disbursement = new Disbursement();
         disbursement.setAmount(disbursementDto.amount());
+        disbursement.setApplicationID(disbursementDto.applicationID());
         disbursement.setDate(LocalDate.now());
-        disbursement.setStatus("PENDING");
+        disbursement.setStatus("INITIATED");
         return disbursement;
     }
     public static Payment PaymentUtil(PaymentDto paymentDto){

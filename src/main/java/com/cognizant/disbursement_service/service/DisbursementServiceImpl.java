@@ -1,12 +1,12 @@
 package com.cognizant.disbursement_service.service;
 
+import com.cognizant.disbursement_service.dto.BudgetDto;
+import com.cognizant.disbursement_service.feign.BudgetServiceClient;
 import com.cognizant.disbursement_service.feign.GrantServiceClient;
 import com.cognizant.disbursement_service.dto.GrantApplicationDto;
 import com.cognizant.disbursement_service.dto.DisbursementDto;
-import com.cognizant.disbursement_service.entity.Allocation;
 import com.cognizant.disbursement_service.entity.Disbursement;
 import com.cognizant.disbursement_service.exception.DisbursementException;
-import com.cognizant.disbursement_service.repository.AllocationRepository;
 import com.cognizant.disbursement_service.repository.DisbursementRepository;
 import com.cognizant.disbursement_service.util.ClassUtilSeparator;
 import lombok.extern.slf4j.Slf4j;
@@ -25,56 +25,46 @@ public class DisbursementServiceImpl implements IDisbursementService {
     private DisbursementRepository disbursementRepo;
 
     @Autowired
-    private AllocationRepository allocationRepo;
+    private BudgetServiceClient budgetClient;
 
     @Autowired
-    private GrantServiceClient grantClient; // Feign Client to talk to Grant Service
+    private GrantServiceClient grantClient;
 
     @Override
     @Transactional
     public Disbursement initiateDisbursement(DisbursementDto dto) {
-        log.info("Service: Initiating disbursement for Application ID: {} Amount: {}",
-                dto.applicationID(), dto.amount());
+        log.info("Initiating disbursement process for App ID: {}", dto.applicationID());
 
-        // 1. Fetch Allocation from Local DB (The researcher's specific "wallet")
-        Allocation allocation = allocationRepo.findByApplicationID(dto.applicationID())
-                .orElseThrow(() -> new DisbursementException(
-                        "Funds have not been allocated yet. Allocation must be initiated first.",
-                        HttpStatus.BAD_REQUEST));
-
-        // 2. Validate against the Researcher's Remaining Balance
-        if (dto.amount() > allocation.getRemainingBalance()) {
-            throw new DisbursementException(
-                    "Insufficient allocated funds. Remaining balance: " + allocation.getRemainingBalance(),
-                    HttpStatus.BAD_REQUEST);
-        }
-
-        // 3. Verify Application exists in the Remote Grant Service
+        // 1. Verify Approval Status
         GrantApplicationDto app = grantClient.getApplication(dto.applicationID());
         if (app == null) {
-            throw new DisbursementException("Application not found in Grant Service", HttpStatus.NOT_FOUND);
+            throw new DisbursementException("Application not found", HttpStatus.NOT_FOUND);
+        }
+        if (!"APPROVED".equalsIgnoreCase(app.status())) {
+            throw new DisbursementException("Application status must be APPROVED. Current: " + app.status(), HttpStatus.BAD_REQUEST);
         }
 
-        // 4. Update Local Allocation Financials
-        Double currentDisbursed = (allocation.getDisbursedAmount() != null) ? allocation.getDisbursedAmount() : 0.0;
-        Double newDisbursedTotal = currentDisbursed + dto.amount();
-
-        allocation.setDisbursedAmount(newDisbursedTotal);
-        allocation.setRemainingBalance(allocation.getTotalAwardedAmount() - newDisbursedTotal);
-
-        if (allocation.getRemainingBalance() <= 0) {
-            allocation.setStatus("EXHAUSTED");
+        // 2. Check Budget Sufficiency
+        BudgetDto budget = budgetClient.getBudgetByProgram(dto.programID());
+        if (budget == null) {
+            throw new DisbursementException("Budget not found for Program: " + dto.programID(), HttpStatus.NOT_FOUND);
         }
-        allocationRepo.save(allocation);
+        if (dto.amount() > budget.remainingAmount()) {
+            throw new DisbursementException("Insufficient budget. Available: " + budget.remainingAmount(), HttpStatus.BAD_REQUEST);
+        }
 
-        // 5. Create and Save Disbursement Entity
+        // 3. Update Remote Budget
+        try {
+            budgetClient.allocateFundToResearcher(budget.budgetID(), dto.amount());
+        } catch (Exception e) {
+            throw new DisbursementException("Failed to update Budget Service", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+
+        // 4. Save Local Record
         Disbursement disbursement = ClassUtilSeparator.DisbursementUtil(dto);
-        disbursement.setApplicationID(dto.applicationID()); // Store ID as Long// Or use dto.status() if coming from request
 
         Disbursement saved = disbursementRepo.save(disbursement);
-
-        log.info("Service Success: Disbursement ID {} created. New Balance: {}",
-                saved.getDisbursementID(), allocation.getRemainingBalance());
+        log.info("Successfully created Disbursement ID: {}", saved.getDisbursementID());
 
         return saved;
     }

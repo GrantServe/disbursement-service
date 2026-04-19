@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: disbursement-service
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/disbursementdb
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+  session:
+    jdbc:
+      initialize-schema: always
+
+  cloud:
+    openfeign:
+      httpclient:
+        hc5:
+          enabled: true
+
+server:
+  port: 8078
+
+jwt:
+  secret: Y2Y4ZTM1YmYtYjYyMC00ZDllLTlhZTMtZDY2ZDU4ZTMxZmE5Cg==
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
