@@ -1,6 +1,7 @@
 package com.cognizant.disbursement_service.config;
 
-import com.cts.grantserve.security.servlet.SharedServletConfig;
+import com.cts.grantserve.security.servlet.SharedSecurityUtils;
+import com.cts.grantserve.security.servlet.SharedServletConfig; // Use the SERVLET version
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -18,6 +19,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        SharedSecurityUtils.applySharedSecurity(http);
         return http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
