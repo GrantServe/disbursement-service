@@ -47,4 +47,11 @@ public class DisbursementController {
         disbursementService.deleteDisbursement(id);
         return ResponseEntity.ok("Disbursement " + id + " deleted successfully");
     }
+
+       @GetMapping("/researcher/{researcherID}")
+       public ResponseEntity<List<Disbursement>> getByResearcher(@PathVariable Long researcherID) {
+           log.info("REST Request: Tracking disbursements for Researcher ID: {}", researcherID);
+           List<Disbursement> results = disbursementService.trackByResearcher(researcherID);
+           return ResponseEntity.ok(results);
+       }
 }

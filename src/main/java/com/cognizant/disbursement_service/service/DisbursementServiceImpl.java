@@ -94,4 +94,21 @@ public class DisbursementServiceImpl implements IDisbursementService {
         disbursementRepo.deleteById(id);
         log.info("Successfully deleted disbursement record ID: {}", id);
     }
+
+
+       @Override
+       public List<Disbursement> trackByResearcher(Long researcherID) {
+           log.info("Tracking disbursements for Researcher ID: {}", researcherID);
+           List<GrantApplicationDto> applications = grantClient.fetchGrantApplications(researcherID);
+           List<Long> applicationIDs = applications.stream()
+               .map(GrantApplicationDto::applicationID)
+               .toList();
+           if (applicationIDs.isEmpty()) {
+               log.warn("No applications found for Researcher ID: {}", researcherID);
+               return List.of(); // Return empty list
+           }
+           List<Disbursement> disbursements = disbursementRepo.findByApplicationIDIn(applicationIDs);
+           log.info("Found {} disbursements for Researcher ID: {}", disbursements.size(), researcherID);
+           return disbursements;
+       }
 }
