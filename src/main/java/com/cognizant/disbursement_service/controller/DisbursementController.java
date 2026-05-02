@@ -1,5 +1,6 @@
 package com.cognizant.disbursement_service.controller;
 
+import com.cognizant.disbursement_service.dto.ApprovedApplicationWithDisbursementDto;
 import com.cognizant.disbursement_service.dto.DisbursementDto;
 import com.cognizant.disbursement_service.entity.Disbursement;
 import com.cognizant.disbursement_service.service.IDisbursementService;
@@ -14,7 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/disbursements")
-@CrossOrigin(origins = "*")
 @Slf4j
 public class DisbursementController {
 
@@ -48,10 +48,19 @@ public class DisbursementController {
         return ResponseEntity.ok("Disbursement " + id + " deleted successfully");
     }
 
-       @GetMapping("/researcher/{researcherID}")
-       public ResponseEntity<List<Disbursement>> getByResearcher(@PathVariable Long researcherID) {
-           log.info("REST Request: Tracking disbursements for Researcher ID: {}", researcherID);
-           List<Disbursement> results = disbursementService.trackByResearcher(researcherID);
-           return ResponseEntity.ok(results);
-       }
+//       @GetMapping("/researcher/{researcherID}")
+//       public ResponseEntity<List<Disbursement>> getByResearcher(@PathVariable Long researcherID) {
+//           log.info("REST Request: Tracking disbursements for Researcher ID: {}", researcherID);
+//           List<Disbursement> results = disbursementService.trackByResearcher(researcherID);
+//           return ResponseEntity.ok(results);
+//       }
+
+    @GetMapping("/researcher/{researcherId}")
+    public ResponseEntity<List<ApprovedApplicationWithDisbursementDto>> getApprovedApplicationsWithDisbursement(
+            @PathVariable Long researcherId) {
+        log.info("REST Request: Fetching approved applications with disbursement details for Researcher ID: {}", researcherId);
+        List<ApprovedApplicationWithDisbursementDto> results =
+                disbursementService.getApprovedApplicationsWithDisbursementByResearcherId(researcherId);
+        return ResponseEntity.ok(results);
+    }
 }

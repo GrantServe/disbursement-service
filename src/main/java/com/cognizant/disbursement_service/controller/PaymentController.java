@@ -15,7 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/payments")
-@CrossOrigin(origins = "*")
 @Slf4j
 public class PaymentController {
 

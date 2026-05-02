@@ -15,4 +15,6 @@ public interface GrantServiceClient {
 
     @GetMapping("/GrantApplication/FetchGrantApplication/{id}")
     List<GrantApplicationDto> fetchGrantApplications(@PathVariable("id") Long researcherId);
+
+
 }
